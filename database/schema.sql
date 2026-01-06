@@ -1,0 +1,28 @@
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS stores (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS receipts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    store_id INTEGER NOT NULL,
+    item_name TEXT NOT NULL,
+    price REAL NOT NULL,
+    purchase_date TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (store_id) REFERENCES stores(id)
+);
+
+CREATE TABLE IF NOT EXISTS warranties (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    receipt_id INTEGER NOT NULL,
+    duration_months INTEGER NOT NULL,
+    expiry_date TEXT NOT NULL,
+    FOREIGN KEY (receipt_id) REFERENCES receipts(id)
+);
