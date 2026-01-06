@@ -76,3 +76,28 @@ class DatabaseManager:
 
         self.conn.commit()
         return self.cursor.lastrowid
+    
+    def fetch_receipts(self):
+        # Return all receipts as a list of dicts.
+        self.cursor.execute("SELECT * FROM receipts")
+        rows = self.cursor.fetchall()
+        return [dict(zip([column[0] for column in self.cursor.description], row)) for row in rows]
+    
+    def fetch_expiring_warranties(self, threshold_days=30):
+        # Fetch warranties expiring in the next `threshold_days`.
+        self.cursor.execute("SELECT * FROM warranties")
+        rows = self.cursor.fetchall()
+
+        result = []
+        from datetime import datetime, timedelta
+        for row in rows:
+            expiry_date = datetime.strptime(row[3], "%Y-%m-%d")
+            days_remaining = (expiry_date - datetime.now()).days
+            if 0 <= days_remaining <= threshold_days:
+                result.append(dict(zip([column[0] for column in self.cursor.description], row)))
+
+        return result
+    
+    def close(self):
+        if self.conn:
+            self.conn.close()
