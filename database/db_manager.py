@@ -1,5 +1,6 @@
 import sqlite3
 from pathlib import Path
+from datetime import datetime 
 
 class DatabaseManager:
     def __init__(self, db_path=None):
@@ -73,6 +74,8 @@ class DatabaseManager:
             INSERT INTO warranties (receipt_id, duration_months, expiry_date)
             VALUES (?, ?, ?)
         """, (warranty.receipt_id, warranty.duration_months, warranty.expiry_date))
+        if not warranty.expiry_date:
+            raise ValueError("Warranty expiry date cannot be None")
 
         self.conn.commit()
         return self.cursor.lastrowid
@@ -84,19 +87,42 @@ class DatabaseManager:
         return [dict(zip([column[0] for column in self.cursor.description], row)) for row in rows]
     
     def fetch_expiring_warranties(self, threshold_days=30):
-        # Fetch warranties expiring in the next `threshold_days`.
+        """
+        Fetch warranties expiring within `threshold_days`.
+        Skips invalid or NULL expiry dates safely.
+        Ensures days_remaining is always int.
+        """
         self.cursor.execute("SELECT * FROM warranties")
         rows = self.cursor.fetchall()
+        columns = [col[0] for col in self.cursor.description]
 
-        result = []
-        from datetime import datetime, timedelta
+        warranties = []
+
         for row in rows:
-            expiry_date = datetime.strptime(row[3], "%Y-%m-%d")
-            days_remaining = (expiry_date - datetime.now()).days
-            if 0 <= days_remaining <= threshold_days:
-                result.append(dict(zip([column[0] for column in self.cursor.description], row)))
+            row_dict = dict(zip(columns, row))
+            expiry_date_str = row_dict.get("expiry_date")
 
-        return result
+            # Skip bad data
+            if not expiry_date_str:  # catches None or empty string
+                continue
+
+            try:
+                expiry_date = datetime.strptime(expiry_date_str, "%Y-%m-%d")
+            except ValueError:
+                continue
+
+            days_remaining = max(0, (expiry_date - datetime.now()).days)
+
+            # Defensive check
+            if days_remaining is None or threshold_days is None:
+                continue
+
+            if 0 <= days_remaining <= threshold_days:
+                row_dict["days_remaining"] = days_remaining
+                warranties.append(row_dict)
+
+        return warranties
+
     
     def close(self):
         if self.conn:

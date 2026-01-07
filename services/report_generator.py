@@ -43,35 +43,42 @@ class ReportGenerator:
                     purchase_date_str=purchase_date,
                     warranty_months=warranty_months
                 )
-    def export_warranty_report_csv(self, file_path, threshold_days=None):
-
-        # Exports all warranties or expiring warranties to CSV
-
-        if threshold_days:
-            warranties = self.rm.get_expiring_warranties(threshold_days)
-        else:
-            warranties = self.db.fetch_expiring_warranties(365*100)  # All warranties
+    def export_warranty_report_csv(self, file_path, threshold_days=3650):
+        """
+        Export warranty report to CSV.
+        """
+        warranties = self.db.fetch_expiring_warranties(threshold_days)
 
         with open(file_path, 'w', newline='', encoding='utf-8') as csvfile:
             fieldnames = ['item_name', 'store', 'expiry_date', 'days_remaining']
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
+
             for w in warranties:
-                expiry_date = datetime.strptime(w['expiry_date'], "%Y-%m-%d")
-                days_remaining = max(0, (expiry_date - datetime.now()).days)
-                # Fetch item name + store from receipts
-                self.db.cursor.execute("SELECT item_name, store_id FROM receipts WHERE id = ?", (w['receipt_id'],))
-                r = self.db.cursor.fetchone()
-                item_name = r[0]
-                store_id = r[1]
-                self.db.cursor.execute("SELECT name FROM stores WHERE id = ?", (store_id,))
-                store = self.db.cursor.fetchone()[0]
+                # Fetch receipt
+                self.db.cursor.execute(
+                    "SELECT item_name, store_id FROM receipts WHERE id = ?",
+                    (w["receipt_id"],)
+                )
+                receipt = self.db.cursor.fetchone()
+                if not receipt:
+                    continue
+
+                item_name, store_id = receipt
+
+                # Fetch store
+                self.db.cursor.execute(
+                    "SELECT name FROM stores WHERE id = ?",
+                    (store_id,)
+                )
+                store = self.db.cursor.fetchone()
+                store_name = store[0] if store else "Unknown"
 
                 writer.writerow({
-                    'item_name': item_name,
-                    'store': store,
-                    'expiry_date': w['expiry_date'],
-                    'days_remaining': days_remaining
+                    "item_name": item_name,
+                    "store": store_name,
+                    "expiry_date": w["expiry_date"],
+                    "days_remaining": w["days_remaining"]
                 })
                 
     def export_warranty_report_txt(self, file_path, threshold_days=None):

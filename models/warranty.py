@@ -17,7 +17,14 @@ class Warranty:
         expiry = datetime.strptime(self.expiry_date, "%Y-%m-%d")
         return datetime.now() > expiry
 
-    def days_remaining(self) -> int:
-        expiry = datetime.strptime(self.expiry_date, "%Y-%m-%d")
+    def days_remaining(self) -> int | None:
+        if not self.expiry_date:
+            return None
+
+        if isinstance(self.expiry_date, datetime):
+            expiry = self.expiry_date
+        else:
+            expiry = datetime.strptime(self.expiry_date, "%Y-%m-%d")
+
         remaining = expiry - datetime.now()
         return max(0, remaining.days)
